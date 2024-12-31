@@ -18,6 +18,9 @@ public class JwtService {
 
     @Value("${jwt.expiration:2592000000}") // Default 30 days in milliseconds
     private long jwtExpiration;
+    
+    @Value("${admin.key}") // admin key
+    private String adminKey;
 
     // Validate JWT token
     public boolean validateToken(String token) {
@@ -40,6 +43,32 @@ public class JwtService {
             logger.error("Invalid JWT token: {}", token);
         }
         return false;
+    }
+    
+    public boolean validateAdminToken(String token) {
+        try {
+        	token = token.split(" ")[1];
+            Claims claims = Jwts.parserBuilder()
+                    .setSigningKey(Keys.hmacShaKeyFor(secretKey.getBytes()))
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+
+            String role = claims.get("role", String.class);
+            logger.info("fetched role from token {}", role);
+            if (!adminKey.equals(role)) {
+                logger.warn("Non-admin token provided: {}", token);
+                return false;
+            }
+            logger.info("Admin token validated successfully.");
+            return true;
+        } catch (ExpiredJwtException e) {
+            logger.error("JWT token expired: {}", token);
+            return false;
+        } catch (JwtException e) {
+            logger.error("Invalid JWT token: {}", token);
+            return false;
+        }
     }
 
 
